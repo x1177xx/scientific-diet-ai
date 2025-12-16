@@ -1,0 +1,65 @@
+services:
+  # PHP + Apache Web服务器
+  web:
+    build: .
+    container_name: diet-web
+    ports:
+      - "8080:80"  # 本地8080映射到容器80端口
+    volumes:
+      - ./../src:/var/www/html  # 挂载源代码
+      - ./logs/apache:/var/log/apache2
+    depends_on:
+      - db
+    environment:
+      - DB_HOST=db
+      - DB_USER=root
+      - DB_PASSWORD=root123
+      - DB_NAME=scientific_diet
+    restart: unless-stopped
+    networks:
+      - diet-network
+
+  # MySQL数据库
+  db:
+    image: mysql:5.7
+    container_name: diet-db
+    ports:
+      - "3307:3306"  # 避免与本地MySQL冲突
+    environment:
+      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_DATABASE: scientific_diet
+      MYSQL_USER: diet_user
+      MYSQL_PASSWORD: diet123
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./../database/scientific_diet_full.sql:/docker-entrypoint-initdb.d/init.sql
+    restart: unless-stopped
+    command: --default-authentication-plugin=mysql_native_password
+    networks:
+      - diet-network
+
+  # phpMyAdmin（数据库管理工具）
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: diet-pma
+    ports:
+      - "8081:80"
+    environment:
+      PMA_HOST: db
+      MYSQL_ROOT_PASSWORD: root123
+      UPLOAD_LIMIT: 50M
+    depends_on:
+      - db
+    restart: unless-stopped
+    networks:
+      - diet-network
+
+# 数据卷（持久化存储）
+volumes:
+  mysql_data:
+    driver: local
+
+# 网络配置
+networks:
+  diet-network:
+    driver: bridge
